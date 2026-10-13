@@ -1,81 +1,57 @@
 # Market Data Quality Demo
 
-A small Python example of validating broker-sourced quote events before using
-them in a downstream dataset. The runnable example uses fictional data only.
+A small quote-data checker from my trading research work. The larger project
+includes broker-data collection, data-quality checks, and tests of trading
+hypotheses. This repository shares an offline example using synthetic quotes.
 
-## Project overview
+## What the demo checks
 
-This demonstration draws on data engineering and hypothesis evaluation work in a
-private trading research project. It combines a runnable quote-quality example
-with a high-level overview of the research process. The code illustrates schema
-validation, duplicate detection, and event-time ordering, helping keep
-questionable records visible in the dataset.
+`demo.py` checks event identifiers, timestamps, and bid/ask prices. It flags
+duplicate records, timestamps that go backwards within a symbol's stream,
+missing or non-finite prices, and bids above asks.
 
-## Research process overview
+The audit leaves the input records unchanged. Each issue includes its row number
+so it can be traced back to the input. Timestamps must include a timezone;
+the checker converts them to UTC rather than guessing the timezone.
 
-The research asks whether a candidate relationship survives data-quality,
-execution, and statistical checks. A selective summary of the evaluation
-approach is shown below.
+The example has six fictional quotes. Four deliberately contain errors, leaving
+two rows without detected issues. Running it prints a JSON report with these
+counts and the affected rows.
 
-| Stage | Research question |
-|---|---|
-| Hypothesis and baseline | What economic mechanism is proposed, and what would falsify it relative to a suitable baseline? |
-| Data feasibility | Are coverage, timestamps, and the required observations adequate for the proposed question? |
-| Causal measurement | Are signal observation, entry, and evaluation separated to avoid shared-price artifacts and look-ahead bias? |
-| Execution costs | Which spread, fee, and execution components can be measured, and which remain unknown? |
-| Statistical power | On the final eligible sample, what effect can the design detect before candidate outcomes are inspected? |
-| Evaluation and decision | Where feasibility permits, use frozen rules, time-ordered evaluation, and inference that respects dependence; record nulls and stop or redesign when evidence is inadequate. |
+## Run
 
-Closely spaced observations can represent the same underlying event. Episode
-aggregation and trading-day clustering help account for that dependence.
-Predictive evidence and achievable execution require separate validation.
-
-The runnable example implements the quote-quality checks only. The later research
-stages above are a methodological overview; this package contains no executable
-alpha model or strategy-performance result.
-
-## Run locally
-
-Requires Python 3.10 or newer. Uses the standard library; no additional packages
-or credentials are needed.
+Requires Python 3.10 or newer. Everything uses the standard library.
 
 ```bash
 python demo.py
 python -m unittest discover -s tests -v
 ```
 
-The example generates six fictional quote records. Two have no detected issues;
-the other four illustrate a duplicate, a timestamp regression, a crossed quote,
-and a missing price. The command prints a JSON audit report. Detected issues in
-this deliberately malformed fixture are expected.
+The five tests cover the injected errors, equivalent timestamps in different
+timezones, invalid prices, input preservation, and repeated timestamp regressions.
 
-## Selected design choices
+## How I decide whether to continue a study
 
-| Concern | Demonstrated check |
-|---|---|
-| Event identity | Duplicate `(symbol, event_id)` detection |
-| Time representation | Timezone-aware timestamps normalized to UTC |
-| Stream ordering | Per-symbol timestamp regression detection |
-| Quote validity | Finite positive prices and bid/ask ordering |
-| Data traceability | Input row number and issue codes in the report |
-| Input preservation | The audit does not modify input records |
+In the private project, I have investigated trading hypotheses and built tools
+to check whether the data and evaluation can support them. Some ideas stopped at
+feasibility checks; others reached evaluation and failed their decision criteria.
+Those outcomes stay in the research record.
 
-```text
-Fictional broker quote events
-            |
-            v
-Schema and ordering checks
-            |
-            v
-Issue ledger + summary counts
-```
+For a new study, I first check whether the required observations are available
+and whether the sample can detect an effect large enough to matter after costs.
+Signal observations, entry prices, and evaluation prices are separated to avoid
+look-ahead bias and relationships created by sharing the same price.
 
-## Scope
+I also check which costs can actually be measured. Quote-based estimates still
+leave actual fill quality unverified. Closely spaced observations are grouped
+into episodes, and uncertainty is assessed across trading days.
 
-This is a deliberately small offline example. It checks the supplied records;
-it does not establish feed freshness, complete market coverage, or execution
-quality. Broker integration and trading functionality are outside this example.
+If essential data is missing, important costs remain unknown, or the required
+sample is unrealistic, I stop and record the reason before inspecting candidate
+returns. If those checks pass, evaluation proceeds under frozen rules.
+A failed evaluation is recorded without changing the rules to fit the result.
 
-All symbols, identifiers, timestamps, and prices in the demo are fictional. The
-example contains no production configuration, account records, market-data
-archive, or research results.
+This repository contains the data-checking example only. The collector,
+broker configuration, real data, specific signals, and full study results remain
+private. Passing these checks does not establish feed freshness, full market
+coverage, or a profitable strategy.
