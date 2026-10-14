@@ -12,7 +12,14 @@ missing or non-finite prices, and bids above asks.
 
 The audit leaves the input records unchanged. Each issue includes its row number
 so it can be traced back to the input. Timestamps must include a timezone;
-the checker converts them to UTC rather than guessing the timezone.
+the checker converts them to UTC rather than guessing the timezone. A `Z`
+UTC designator is accepted only at the end of a timestamp.
+
+Prices may be numbers or numeric strings such as `"100.02"`, as they often
+are when read from CSV. Each price must convert to a finite, positive
+number. Booleans, missing values, invalid strings, zero and negative
+prices are rejected. Conversion is used for validation; the input values
+are not rewritten.
 
 The example has six fictional quotes. Four deliberately contain errors, leaving
 two rows without detected issues. Running it prints a JSON report with these
@@ -27,8 +34,9 @@ python demo.py
 python -m unittest discover -s tests -v
 ```
 
-The five tests cover the injected errors, equivalent timestamps in different
-timezones, invalid prices, input preservation, and repeated timestamp regressions.
+The tests cover the injected errors, equivalent timestamps in different
+timezones, malformed UTC designators, numeric price strings, invalid
+prices, input preservation, and repeated timestamp regressions.
 
 ## How I decide whether to continue a study
 
@@ -55,3 +63,7 @@ This repository contains the data-checking example only. The collector,
 broker configuration, real data, specific signals, and full study results remain
 private. Passing these checks does not establish feed freshness, full market
 coverage, or a profitable strategy.
+
+## License
+
+MIT; see [LICENSE](LICENSE).

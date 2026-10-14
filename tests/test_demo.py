@@ -46,5 +46,44 @@ class QualityAuditTests(unittest.TestCase):
         self.assertEqual(audit(records)["issue_counts"], {"TIMESTAMP_REGRESSION": 2})
 
 
+    def test_utc_suffix_and_offsets_refer_to_the_same_instant(self):
+        times = (
+            "2024-01-02T12:00:00.500Z",
+            "2024-01-02T12:00:00.500+00:00",
+            "2024-01-02T07:00:00.500-05:00",
+        )
+        records = [dict(synthetic_quotes()[0], event_id=f"time-{i}", timestamp=t)
+                   for i, t in enumerate(times)]
+        self.assertEqual(audit(records)["rows_with_detected_issues"], 0)
+
+    def test_malformed_utc_designators_are_rejected(self):
+        for value in (
+            "2024-01-02Z12:00:00+00:00",
+            "2024-01-02T12:00:00Z+00:00",
+            "2024-01-02T12:00:00ZZ",
+            "2024-01-02T12:00:00Zjunk",
+            "2024-01-02T12:00:00+25:00",
+            "2024-01-02T12:00:00",
+        ):
+            with self.subTest(timestamp=value):
+                record = dict(synthetic_quotes()[0], timestamp=value)
+                self.assertEqual(audit([record])["issue_counts"],
+                                 {"INVALID_TIMESTAMP": 1})
+
+    def test_numeric_price_strings_are_checked_without_rewriting(self):
+        record = dict(synthetic_quotes()[0], bid="100", ask="100.02")
+        original = copy.deepcopy(record)
+        self.assertEqual(audit([record])["rows_with_detected_issues"], 0)
+        self.assertEqual(record, original)
+        crossed = dict(record, bid="100.03")
+        self.assertEqual(audit([crossed])["issue_counts"], {"CROSSED_QUOTE": 1})
+
+    def test_invalid_price_strings_are_rejected(self):
+        for value in ("", "unknown", "NaN", "inf", "-inf", "1e999", "0", "-1"):
+            with self.subTest(price=value):
+                record = dict(synthetic_quotes()[0], bid=value)
+                self.assertEqual(audit([record])["issue_counts"], {"INVALID_PRICE": 1})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,8 +9,12 @@ import math
 def _timestamp(value):
     if not isinstance(value, str):
         return None
+    # Z denotes UTC only when it is the final character.
+    if "Z" in value[:-1]:
+        return None
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(normalized)
         if parsed.utcoffset() is None:
             return None
         return parsed.astimezone(timezone.utc)
